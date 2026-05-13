@@ -1655,6 +1655,7 @@ export class MusicXmlImporter extends ScoreImporter {
         let staffIndex: number;
         let staff: Staff;
         let bar: Bar;
+        const explicitClefStaffIndexes = new Set<number>();
 
         if (this._lastBeat == null) {
             // attributes directly at the start of the bar
@@ -1682,6 +1683,7 @@ export class MusicXmlImporter extends ScoreImporter {
                         staff = this._getOrCreateStaff(track, staffIndex);
                         bar = this._getOrCreateBar(staff, masterBar);
                         this._parseClef(c, bar);
+                        explicitClefStaffIndexes.add(staffIndex);
                         break;
                     case 'staff-details':
                         staffIndex = Number.parseInt(c.getAttribute('number', '1'), 10) - 1;
@@ -1698,6 +1700,10 @@ export class MusicXmlImporter extends ScoreImporter {
                         break;
                 }
             }
+
+            // Apply spec-compliant clef inheritance for all staves in this bar
+            // See MusicXML 4.0 spec: https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/clef/
+            this._applySpecCompliantClefInheritance(track, masterBar);
         } else {
             // attribute changes during bar
             for (const c of element.childElements()) {
@@ -1722,6 +1728,56 @@ export class MusicXmlImporter extends ScoreImporter {
                         break;
                 }
             }
+        }
+    }
+
+    /**
+     * Fully spec-compliant clef handling per MusicXML 4.0:
+     * - Clefs can be defined per staff, per measure, and can change mid-measure (see https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/clef/)
+     * - If a clef is missing for a staff in a measure, it is inherited from the previous measure for that staff (see https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/clef/)
+     * - If there is no previous measure, the part's initial clef is used (see https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/part/)
+     * - Mid-measure clef changes are handled by attribute changes during the bar (not just at the start)
+     *
+     * This method ensures that every bar for every staff has a valid clef, using proper inheritance rules.
+     */
+    private _applySpecCompliantClefInheritance(track: Track, masterBar: MasterBar) {
+        for (let staffIndex = 0; staffIndex < track.staves.length; staffIndex++) {
+            const staff = this._getOrCreateStaff(track, staffIndex);
+            const bar = this._getOrCreateBar(staff, masterBar);
+            // If the bar already has a clef, nothing to do
+            if (bar.clef !== undefined && bar.clef !== null) continue;
+
+            // Try to inherit from previous bar for this staff
+            if (bar.previousBar && bar.previousBar.clef !== undefined && bar.previousBar.clef !== null) {
+                bar.clef = bar.previousBar.clef;
+                bar.clefOttava = bar.previousBar.clefOttava;
+                bar.staff.isPercussion = bar.previousBar.staff.isPercussion;
+                bar.staff.showTablature = bar.previousBar.staff.showTablature;
+                // Spec: https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/clef/
+                continue;
+            }
+
+            // If no previous bar, try to inherit from part's initial clef (first bar with clef for this staff)
+            let foundInitial = false;
+            for (let prevBarIdx = 0; prevBarIdx < masterBar.index; prevBarIdx++) {
+                const prevBar = staff.bars[prevBarIdx];
+                if (prevBar && prevBar.clef !== undefined && prevBar.clef !== null) {
+                    bar.clef = prevBar.clef;
+                    bar.clefOttava = prevBar.clefOttava;
+                    bar.staff.isPercussion = prevBar.staff.isPercussion;
+                    bar.staff.showTablature = prevBar.staff.showTablature;
+                    foundInitial = true;
+                    break;
+                }
+            }
+            if (foundInitial) continue;
+
+            // If still not found, use default G clef (spec: "If not specified, the G clef is used by default")
+            bar.clef = Clef.G2;
+            bar.clefOttava = 0;
+            bar.staff.isPercussion = false;
+            bar.staff.showTablature = false;
+            // Spec: https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/clef/
         }
     }
 

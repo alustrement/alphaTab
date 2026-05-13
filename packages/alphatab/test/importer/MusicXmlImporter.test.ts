@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { BendType } from '@coderline/alphatab/model/BendType';
+import { Clef } from '@coderline/alphatab/model/Clef';
 import { JsonConverter } from '@coderline/alphatab/model/JsonConverter';
+import { Ottavia } from '@coderline/alphatab/model/Ottavia';
 import { BarNumberDisplay } from '@coderline/alphatab/model/RenderStylesheet';
 import type { Score } from '@coderline/alphatab/model/Score';
 import { MusicXmlImporterTestHelper } from 'test/importer/MusicXmlImporterTestHelper';
@@ -273,6 +275,248 @@ describe('MusicXmlImporterTests', () => {
     it('buzzroll', async () => {
         const score = await MusicXmlImporterTestHelper.loadFile('test-data/musicxml4/buzzroll.xml');
         expect(score).toMatchSnapshot();
+    });
+
+    // MusicXML 4.0 clefs are assigned per staff via the clef@number attribute.
+    // A clef declared for one staff must not propagate to another staff.
+    // Spec: https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/clef/
+    it('percussion-clef-on-one-staff-does-not-propagate-to-another-staff', async () => {
+        const xml = `
+            <?xml version="1.0" encoding="UTF-8"?>
+            <score-partwise version="3.1">
+                <part-list>
+                    <score-part id="P1">
+                        <part-name>Drums</part-name>
+                        <score-instrument id="P1-I1"><instrument-name>Drumset</instrument-name></score-instrument>
+                        <midi-instrument id="P1-I1">
+                            <midi-channel>10</midi-channel>
+                            <midi-program>1</midi-program>
+                            <midi-unpitched>38</midi-unpitched>
+                        </midi-instrument>
+                    </score-part>
+                </part-list>
+                <part id="P1">
+                    <measure number="1">
+                        <attributes>
+                            <divisions>1</divisions>
+                            <key><fifths>0</fifths></key>
+                            <time><beats>4</beats><beat-type>4</beat-type></time>
+                            <staves>2</staves>
+                            <clef number="2"><sign>percussion</sign></clef>
+                        </attributes>
+                        <note>
+                            <instrument id="P1-I1"/>
+                            <pitch><step>D</step><octave>2</octave></pitch>
+                            <duration>1</duration>
+                            <voice>1</voice>
+                            <type>quarter</type>
+                            <staff>1</staff>
+                        </note>
+                        <backup><duration>1</duration></backup>
+                        <note>
+                            <instrument id="P1-I1"/>
+                            <pitch><step>D</step><octave>2</octave></pitch>
+                            <duration>1</duration>
+                            <voice>1</voice>
+                            <type>quarter</type>
+                            <staff>2</staff>
+                        </note>
+                    </measure>
+                </part>
+            </score-partwise>`;
+
+        const importer = MusicXmlImporterTestHelper.prepareImporterWithBytes(new TextEncoder().encode(xml));
+        const score = importer.readScore();
+
+        expect(score.tracks[0].staves[0].isPercussion).toBe(false);
+        expect(score.tracks[0].staves[1].isPercussion).toBe(true);
+        expect(score.tracks[0].staves[0].bars[0].clef).toBe(Clef.G2);
+        expect(score.tracks[0].staves[1].bars[0].clef).toBe(Clef.Neutral);
+    });
+
+    // MusicXML defaults an unspecified clef to the G clef.
+    // Spec: https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/clef/
+    it('missing-initial-clef-defaults-to-g-clef', async () => {
+        const xml = `
+            <?xml version="1.0" encoding="UTF-8"?>
+            <score-partwise version="3.1">
+                <part-list>
+                    <score-part id="P1">
+                        <part-name>Music</part-name>
+                    </score-part>
+                </part-list>
+                <part id="P1">
+                    <measure number="1">
+                        <attributes>
+                            <divisions>1</divisions>
+                            <key><fifths>0</fifths></key>
+                            <time><beats>4</beats><beat-type>4</beat-type></time>
+                        </attributes>
+                        <note>
+                            <pitch><step>C</step><octave>4</octave></pitch>
+                            <duration>1</duration>
+                            <voice>1</voice>
+                            <type>quarter</type>
+                        </note>
+                    </measure>
+                </part>
+            </score-partwise>`;
+
+        const importer = MusicXmlImporterTestHelper.prepareImporterWithBytes(new TextEncoder().encode(xml));
+        const score = importer.readScore();
+
+        expect(score.tracks[0].staves[0].bars[0].clef).toBe(Clef.G2);
+        expect(score.tracks[0].staves[0].bars[0].clefOttava).toBe(Ottavia.Regular);
+    });
+
+    // MusicXML clef state, including clef-octave-change, is carried on the same staff
+    // until another clef is specified for that staff.
+    // Spec: https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/clef/
+    // Spec: https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/clef-octave-change/
+    it('clef-and-ottava-are-inherited-on-the-same-staff-across-measures', async () => {
+        const xml = `
+            <?xml version="1.0" encoding="UTF-8"?>
+            <score-partwise version="3.1">
+                <part-list>
+                    <score-part id="P1">
+                        <part-name>Music</part-name>
+                    </score-part>
+                </part-list>
+                <part id="P1">
+                    <measure number="1">
+                        <attributes>
+                            <divisions>1</divisions>
+                            <key><fifths>0</fifths></key>
+                            <time><beats>4</beats><beat-type>4</beat-type></time>
+                            <clef>
+                                <sign>F</sign>
+                                <line>4</line>
+                                <clef-octave-change>-1</clef-octave-change>
+                            </clef>
+                        </attributes>
+                        <note>
+                            <pitch><step>C</step><octave>3</octave></pitch>
+                            <duration>1</duration>
+                            <voice>1</voice>
+                            <type>quarter</type>
+                        </note>
+                    </measure>
+                    <measure number="2">
+                        <note>
+                            <pitch><step>D</step><octave>3</octave></pitch>
+                            <duration>1</duration>
+                            <voice>1</voice>
+                            <type>quarter</type>
+                        </note>
+                    </measure>
+                </part>
+            </score-partwise>`;
+
+        const importer = MusicXmlImporterTestHelper.prepareImporterWithBytes(new TextEncoder().encode(xml));
+        const score = importer.readScore();
+
+        expect(score.tracks[0].staves[0].bars[0].clef).toBe(Clef.F4);
+        expect(score.tracks[0].staves[0].bars[0].clefOttava).toBe(Ottavia._8vb);
+        expect(score.tracks[0].staves[0].bars[1].clef).toBe(Clef.F4);
+        expect(score.tracks[0].staves[0].bars[1].clefOttava).toBe(Ottavia._8vb);
+    });
+
+    // MusicXML percussion clefs indicate unpitched percussion notation.
+    // This importer additionally maps pitched input on a percussion staff to known percussion articulations.
+    // The percussion-staff part is grounded in the clef spec; articulation mapping is importer-specific behavior.
+    // Spec: https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/clef/
+    it('pitched-percussion-without-instrument-tag-uses-known-articulation', async () => {
+        const xml = `
+            <?xml version="1.0" encoding="UTF-8"?>
+            <score-partwise version="3.1">
+                <part-list>
+                    <score-part id="P1">
+                        <part-name>Drums</part-name>
+                    </score-part>
+                </part-list>
+                <part id="P1">
+                    <measure number="1">
+                        <attributes>
+                            <divisions>1</divisions>
+                            <key><fifths>0</fifths></key>
+                            <time><beats>4</beats><beat-type>4</beat-type></time>
+                            <clef><sign>percussion</sign></clef>
+                        </attributes>
+                        <note>
+                            <pitch><step>D</step><octave>2</octave></pitch>
+                            <duration>1</duration>
+                            <voice>1</voice>
+                            <type>quarter</type>
+                        </note>
+                        <note>
+                            <pitch><step>C</step><alter>1</alter><octave>3</octave></pitch>
+                            <duration>1</duration>
+                            <voice>1</voice>
+                            <type>quarter</type>
+                        </note>
+                    </measure>
+                </part>
+            </score-partwise>`;
+
+        const importer = MusicXmlImporterTestHelper.prepareImporterWithBytes(new TextEncoder().encode(xml));
+        const score = importer.readScore();
+        const notes = score.tracks[0].staves[0].bars[0].voices[0].beats.flatMap(b => b.notes);
+
+        expect(notes[0].displayValue).toBe(38);
+        expect(notes[0].isPercussion).toBe(true);
+        expect(notes[0].percussionArticulation).toBe(38);
+
+        expect(notes[1].displayValue).toBe(49);
+        expect(notes[1].isPercussion).toBe(true);
+        expect(notes[1].percussionArticulation).toBe(49);
+    });
+
+    // MusicXML percussion clefs indicate unpitched percussion notation.
+    // This importer additionally maps pitched chord members on a percussion staff to known percussion articulations.
+    // The percussion-staff part is grounded in the clef spec; chord articulation mapping is importer-specific behavior.
+    // Spec: https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/clef/
+    it('pitched-percussion-chord-without-instrument-tag-uses-known-articulation', async () => {
+        const xml = `
+            <?xml version="1.0" encoding="UTF-8"?>
+            <score-partwise version="3.1">
+                <part-list>
+                    <score-part id="P1">
+                        <part-name>Drums</part-name>
+                    </score-part>
+                </part-list>
+                <part id="P1">
+                    <measure number="1">
+                        <attributes>
+                            <divisions>1</divisions>
+                            <key><fifths>0</fifths></key>
+                            <time><beats>4</beats><beat-type>4</beat-type></time>
+                            <clef><sign>percussion</sign></clef>
+                        </attributes>
+                        <note>
+                            <pitch><step>D</step><octave>2</octave></pitch>
+                            <duration>1</duration>
+                            <voice>1</voice>
+                            <type>quarter</type>
+                        </note>
+                        <note>
+                            <chord/>
+                            <pitch><step>C</step><alter>1</alter><octave>3</octave></pitch>
+                            <duration>1</duration>
+                            <voice>1</voice>
+                            <type>quarter</type>
+                        </note>
+                    </measure>
+                </part>
+            </score-partwise>`;
+
+        const importer = MusicXmlImporterTestHelper.prepareImporterWithBytes(new TextEncoder().encode(xml));
+        const score = importer.readScore();
+        const notes = score.tracks[0].staves[0].bars[0].voices[0].beats[0].notes;
+
+        expect(notes[0].isPercussion).toBe(true);
+        expect(notes[0].percussionArticulation).toBe(38);
+        expect(notes[1].isPercussion).toBe(true);
+        expect(notes[1].percussionArticulation).toBe(49);
     });
 
     describe('barnumberdisplay', async () => {
