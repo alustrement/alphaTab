@@ -11,6 +11,11 @@ export interface IMouseEventArgs {
     readonly isLeftMouseButton: boolean;
 
     /**
+     * Gets a value indicating whether the shift key was pressed during the event.
+     */
+    readonly shiftKey: boolean;
+
+    /**
      * Gets the X-position of the cursor at the time of the event relative to the given UI container.
      * @param relativeTo The UI element to which the relative position should be calculated.
      * @returns The relative X-position of the cursor to the given UI container at the time the event occured.

@@ -99,6 +99,12 @@ export class ScoreEditor<TSettings> {
     public readonly cursorChanged: IEventEmitterOfT<EditCursor> = new EventEmitterOfT<EditCursor>();
 
     /**
+     * This event is fired when the beat range selection changed (including
+     * when it is cleared).
+     */
+    public readonly selectionChanged: IEventEmitter = new EventEmitter();
+
+    /**
      * This event is fired when an edit was applied to the score (command, undo or redo).
      */
     public readonly scoreEdited: IEventEmitterOfT<ScoreEditedEventArgs> = new EventEmitterOfT<ScoreEditedEventArgs>();
@@ -113,6 +119,59 @@ export class ScoreEditor<TSettings> {
      */
     public get cursor(): EditCursor {
         return this._cursor;
+    }
+
+    private _selectionAnchor: Beat | null = null;
+
+    /**
+     * The current beat range selection as [start, end] in playback order,
+     * within the anchor's staff and voice. Null when nothing is selected.
+     * Extended with Shift+Arrow keys / Shift+Click, cleared by plain
+     * navigation, clicks, edits and Escape.
+     */
+    public get selectionRange(): Beat[] | null {
+        const anchor = this._selectionAnchor;
+        const cursorBeat = this._cursor.beat;
+        if (!anchor || !cursorBeat || anchor === cursorBeat) {
+            return null;
+        }
+        if (anchor.voice.bar.staff !== cursorBeat.voice.bar.staff || anchor.voice.index !== cursorBeat.voice.index) {
+            return null;
+        }
+        const anchorFirst =
+            anchor.voice.bar.index < cursorBeat.voice.bar.index ||
+            (anchor.voice.bar.index === cursorBeat.voice.bar.index &&
+                anchor.voice.beats.indexOf(anchor) <= cursorBeat.voice.beats.indexOf(cursorBeat));
+        return anchorFirst ? [anchor, cursorBeat] : [cursorBeat, anchor];
+    }
+
+    /**
+     * Clears the beat range selection.
+     */
+    public clearSelection(): void {
+        if (this._selectionAnchor) {
+            this._selectionAnchor = null;
+            (this.selectionChanged as EventEmitter).trigger();
+        }
+    }
+
+    private _extendSelection(move: () => boolean): void {
+        const anchor = this._selectionAnchor ?? this._cursor.beat;
+        if (move()) {
+            // selecting across staves/voices is not supported: re-anchor.
+            const cursorBeat = this._cursor.beat;
+            this._selectionAnchor =
+                anchor &&
+                cursorBeat &&
+                anchor.voice.bar.staff === cursorBeat.voice.bar.staff &&
+                anchor.voice.index === cursorBeat.voice.index
+                    ? anchor
+                    : cursorBeat;
+            this._fretInput.reset();
+            (this.cursorChanged as EventEmitterOfT<EditCursor>).trigger(this._cursor);
+            (this.selectionChanged as EventEmitter).trigger();
+            this._placeEditCursor();
+        }
     }
 
     /**
@@ -459,6 +518,15 @@ export class ScoreEditor<TSettings> {
         if (!beat) {
             return;
         }
+        if (args.shiftKey) {
+            // extend the selection from the current beat/anchor to the clicked one.
+            this._extendSelection(() => {
+                this._cursor.moveToBeat(beat);
+                return true;
+            });
+            return;
+        }
+        this.clearSelection();
         this._cursor.moveToBeat(beat);
         if (this._api.settings.core.includeNoteBounds) {
             const note = boundsLookup.getNoteAtPos(beat, relX, relY);
@@ -543,11 +611,19 @@ export class ScoreEditor<TSettings> {
 
         switch (key) {
             case 'ArrowRight':
-                this._moveCursor(() => this._cursor.moveNextBeat());
+                if (args.shiftKey) {
+                    this._extendSelection(() => this._cursor.moveNextBeat());
+                } else {
+                    this._moveCursor(() => this._cursor.moveNextBeat());
+                }
                 args.preventDefault();
                 return;
             case 'ArrowLeft':
-                this._moveCursor(() => this._cursor.movePreviousBeat());
+                if (args.shiftKey) {
+                    this._extendSelection(() => this._cursor.movePreviousBeat());
+                } else {
+                    this._moveCursor(() => this._cursor.movePreviousBeat());
+                }
                 args.preventDefault();
                 return;
             case 'ArrowUp':
@@ -570,19 +646,29 @@ export class ScoreEditor<TSettings> {
                 return;
             case 'Home': {
                 const beat = this._cursor.beat!;
-                this._moveCursor(() => {
+                const moveHome = () => {
                     this._cursor.moveToBeat(beat.voice.beats[0]);
                     return true;
-                });
+                };
+                if (args.shiftKey) {
+                    this._extendSelection(moveHome);
+                } else {
+                    this._moveCursor(moveHome);
+                }
                 args.preventDefault();
                 return;
             }
             case 'End': {
                 const beat = this._cursor.beat!;
-                this._moveCursor(() => {
+                const moveEnd = () => {
                     this._cursor.moveToBeat(beat.voice.beats[beat.voice.beats.length - 1]);
                     return true;
-                });
+                };
+                if (args.shiftKey) {
+                    this._extendSelection(moveEnd);
+                } else {
+                    this._moveCursor(moveEnd);
+                }
                 args.preventDefault();
                 return;
             }
@@ -609,6 +695,7 @@ export class ScoreEditor<TSettings> {
                 return;
             case 'Escape':
                 this._fretInput.reset();
+                this.clearSelection();
                 args.preventDefault();
                 return;
             case '+':
@@ -694,6 +781,7 @@ export class ScoreEditor<TSettings> {
     private _moveCursor(move: () => boolean): void {
         if (move()) {
             this._fretInput.reset();
+            this.clearSelection();
             (this.cursorChanged as EventEmitterOfT<EditCursor>).trigger(this._cursor);
             this._placeEditCursor();
         }

@@ -13,6 +13,10 @@ export class BrowserMouseEventArgs implements IMouseEventArgs {
         return this.mouseEvent.button === 0;
     }
 
+    public get shiftKey(): boolean {
+        return this.mouseEvent.shiftKey;
+    }
+
     public getX(relativeTo: IContainer): number {
         const relativeToElement: HTMLElement = (relativeTo as HtmlElementContainer).element;
         const bounds: DOMRect = relativeToElement.getBoundingClientRect();
