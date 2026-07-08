@@ -419,6 +419,15 @@ export class ScoreEditor<TSettings> {
     }
 
     /**
+     * Moves the edit cursor to the next beat (crossing bar boundaries),
+     * clearing any pending fret input — the programmatic equivalent of the
+     * ArrowRight key, for host-side input surfaces (virtual fretboards…).
+     */
+    public moveCursorNextBeat(): void {
+        this._moveCursor(() => this._cursor.moveNextBeat());
+    }
+
+    /**
      * Places the edit cursor at the given index-based location, clamping every
      * index to the current score shape. Intended for host applications
      * re-anchoring the cursor after replacing the score (e.g. an external
