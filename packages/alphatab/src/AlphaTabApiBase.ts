@@ -9,6 +9,7 @@ import {
 } from '@coderline/alphatab/EventEmitter';
 import { ScoreEditor } from '@coderline/alphatab/editor/ScoreEditor';
 import { AlphaTexImporter } from '@coderline/alphatab/importer/AlphaTexImporter';
+import { ScoreLoader } from '@coderline/alphatab/importer/ScoreLoader';
 import { Logger } from '@coderline/alphatab/Logger';
 import { AlphaSynthMidiFileHandler } from '@coderline/alphatab/midi/AlphaSynthMidiFileHandler';
 import type { IBeatVisibilityChecker } from '@coderline/alphatab/midi/BeatTickLookup';
@@ -679,6 +680,37 @@ export class AlphaTabApiBase<TSettings> {
             this.onError(e as Error);
             return false;
         }
+    }
+
+    /**
+     * Replaces the currently displayed score with one imported from the given
+     * bytes (MusicXML or any other supported format), rendering with the given
+     * hints — by default reusing the viewport so the scroll position is kept.
+     * The current track selection is preserved (clamped to the new score).
+     *
+     * Intended for host applications keeping an external score model as the
+     * source of truth (edit the external model, then push it back here).
+     * Synchronous, unlike {@link load}. The edit history is reset; hosts
+     * re-anchor the edit cursor via {@link ScoreEditor.moveCursorToLocation}.
+     * @param data The raw bytes of the score to import.
+     * @param renderHints Additional hints to respect during layouting and rendering.
+     * @returns true if the score was imported and the render was initiated.
+     */
+    public updateScoreFromData(data: Uint8Array, renderHints?: RenderHints): boolean {
+        let score: Score;
+        try {
+            score = ScoreLoader.loadScoreFromBytes(data, this.settings);
+        } catch (e) {
+            this.onError(e as Error);
+            return false;
+        }
+        const currentIndexes = this._trackIndexes ?? [];
+        let indexes = currentIndexes.filter(i => i >= 0 && i < score.tracks.length);
+        if (indexes.length === 0 || currentIndexes.length === 0) {
+            indexes = [-1];
+        }
+        this.renderScore(score, indexes, renderHints ?? { reuseViewport: true });
+        return true;
     }
 
     /**
