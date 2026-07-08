@@ -10,6 +10,7 @@ import { ScoreLoader } from '@coderline/alphatab/importer/ScoreLoader';
 import { Score } from '@coderline/alphatab/model/Score';
 import { Cursors } from '@coderline/alphatab/platform/Cursors';
 import type { IContainer } from '@coderline/alphatab/platform/IContainer';
+import type { IKeyboardEventArgs } from '@coderline/alphatab/platform/IKeyboardEventArgs';
 import type { IMouseEventArgs } from '@coderline/alphatab/platform/IMouseEventArgs';
 import type { IUiFacade } from '@coderline/alphatab/platform/IUiFacade';
 import type { IScoreRenderer } from '@coderline/alphatab/rendering/IScoreRenderer';
@@ -113,6 +114,9 @@ class TestUiContainer implements IContainer {
     public mouseDown: IEventEmitterOfT<IMouseEventArgs> = new EventEmitterOfT<IMouseEventArgs>();
     public mouseMove: IEventEmitterOfT<IMouseEventArgs> = new EventEmitterOfT<IMouseEventArgs>();
     public mouseUp: IEventEmitterOfT<IMouseEventArgs> = new EventEmitterOfT<IMouseEventArgs>();
+
+    public keyDown: IEventEmitterOfT<IKeyboardEventArgs> = new EventEmitterOfT<IKeyboardEventArgs>();
+    public keyUp: IEventEmitterOfT<IKeyboardEventArgs> = new EventEmitterOfT<IKeyboardEventArgs>();
 }
 
 /**

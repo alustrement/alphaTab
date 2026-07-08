@@ -7,6 +7,7 @@ import {
     type IEventEmitter,
     type IEventEmitterOfT
 } from '@coderline/alphatab/EventEmitter';
+import { ScoreEditor } from '@coderline/alphatab/editor/ScoreEditor';
 import { AlphaTexImporter } from '@coderline/alphatab/importer/AlphaTexImporter';
 import { Logger } from '@coderline/alphatab/Logger';
 import { AlphaSynthMidiFileHandler } from '@coderline/alphatab/midi/AlphaSynthMidiFileHandler';
@@ -434,10 +435,49 @@ export class AlphaTabApiBase<TSettings> {
             this._setupOrDestroyPlayer();
         }
         this._setupClickHandling();
+        this._setupOrDestroyEditor();
         // delay rendering to allow ui to hook up with events first.
         this.uiFacade.beginInvoke(() => {
             this.uiFacade.initialRender();
         });
+    }
+
+    private _editor: ScoreEditor<TSettings> | null = null;
+
+    /**
+     * The interactive score editor (only available when {@link EditorSettings.enabled} is set).
+     * @category Properties - Core
+     * @since 1.8.0
+     */
+    public get editor(): ScoreEditor<TSettings> | null {
+        return this._editor;
+    }
+
+    private _setupOrDestroyEditor(): void {
+        if (this.settings.editor.enabled) {
+            if (!this._editor) {
+                const hadCursors = this._cursorWrapper !== null;
+                this._editor = new ScoreEditor<TSettings>(this);
+                if (hadCursors) {
+                    // cursors already existed before the editor, connect the editor to them.
+                    this._editor.onCursorsCreated(
+                        new Cursors(
+                            this._cursorWrapper!,
+                            this._barCursor!,
+                            this._beatCursor!,
+                            this._selectionWrapper!,
+                            this._editCursor
+                        )
+                    );
+                } else {
+                    this._updateCursors();
+                }
+            }
+        } else if (this._editor) {
+            this._editor.destroy();
+            this._editor = null;
+            this._updateCursors();
+        }
     }
 
     private _setupPlayerWrapper() {
@@ -503,6 +543,10 @@ export class AlphaTabApiBase<TSettings> {
      */
     public destroy(): void {
         this._isDestroyed = true;
+        if (this._editor) {
+            this._editor.destroy();
+            this._editor = null;
+        }
         this._player.destroy();
         this.uiFacade.destroy();
         this._renderer.destroy();
@@ -558,6 +602,7 @@ export class AlphaTabApiBase<TSettings> {
 
         this._renderer.updateSettings(this.settings);
         this._setupOrDestroyPlayer();
+        this._setupOrDestroyEditor();
 
         this._onSettingsUpdated();
     }
@@ -2156,6 +2201,7 @@ export class AlphaTabApiBase<TSettings> {
     private _barCursor: IContainer | null = null;
     private _beatCursor: IContainer | null = null;
     private _selectionWrapper: IContainer | null = null;
+    private _editCursor: IContainer | null = null;
     private _previousTick: number = 0;
     private _currentBeat: MidiTickLookupFindBeatResult | null = null;
     private _currentBeatBounds: BeatBounds | null = null;
@@ -2171,11 +2217,13 @@ export class AlphaTabApiBase<TSettings> {
         cursorHandler?.onDetach(
             new Cursors(this._cursorWrapper, this._barCursor!, this._beatCursor!, this._selectionWrapper!)
         );
+        this._editor?.onCursorsDestroyed();
         this.uiFacade.destroyCursors();
         this._cursorWrapper = null;
         this._barCursor = null;
         this._beatCursor = null;
         this._selectionWrapper = null;
+        this._editCursor = null;
     }
 
     private _createCursors() {
@@ -2189,8 +2237,10 @@ export class AlphaTabApiBase<TSettings> {
             this._barCursor = cursors.barCursor;
             this._beatCursor = cursors.beatCursor;
             this._selectionWrapper = cursors.selectionWrapper;
+            this._editCursor = cursors.editCursor;
             const cursorHandler = this.customCursorHandler ?? this._defaultCursorHandler!;
             cursorHandler?.onAttach(cursors);
+            this._editor?.onCursorsCreated(cursors);
 
             this._isInitialBeatCursorUpdate = true;
         }
@@ -2204,7 +2254,7 @@ export class AlphaTabApiBase<TSettings> {
         this._updateCursorHandler();
         this._updateScrollHandler();
 
-        const enable = this._hasCursor;
+        const enable = this._hasCursor || this._editor !== null;
         if (enable) {
             this._createCursors();
         } else if (!enable && this._cursorWrapper) {

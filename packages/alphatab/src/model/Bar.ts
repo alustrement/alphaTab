@@ -240,6 +240,16 @@ export class Bar {
     }
 
     /**
+     * Ensures newly created bars get ids beyond the given one.
+     * @internal
+     */
+    public static ensureIdGreaterThan(id: number) {
+        if (Bar._globalBarId <= id) {
+            Bar._globalBarId = id + 1;
+        }
+    }
+
+    /**
      * Gets or sets the unique id of this bar.
      */
     public id: number = Bar._globalBarId++;

@@ -18,6 +18,12 @@ export const DEMOS: DemoEntry[] = [
             'Record drum hits onto a percussion staff while the player runs. Demonstrates dynamic score extension and tick-cache updates.'
     },
     {
+        href: '/demos/editor/',
+        title: 'Score Editor',
+        description:
+            'Interactive score editing: click to place the edit cursor, type frets and notes, undo/redo. Demonstrates the editor module.'
+    },
+    {
         href: '/demos/alphatex-editor/',
         title: 'AlphaTex Editor',
         description:

@@ -1,0 +1,17 @@
+export { EditCommand } from '@coderline/alphatab/editor/EditCommand';
+export { CompositeEditCommand } from '@coderline/alphatab/editor/CompositeEditCommand';
+export { EditCommandHistory } from '@coderline/alphatab/editor/EditCommandHistory';
+export { EditCursor } from '@coderline/alphatab/editor/EditCursor';
+export { FretInputState, FretInputResult } from '@coderline/alphatab/editor/FretInputState';
+export { ScoreEditedEventArgs, ScoreEditKind } from '@coderline/alphatab/editor/ScoreEditedEventArgs';
+export { ScoreEditor } from '@coderline/alphatab/editor/ScoreEditor';
+export { AddNoteCommand } from '@coderline/alphatab/editor/commands/AddNoteCommand';
+export { RemoveNoteCommand } from '@coderline/alphatab/editor/commands/RemoveNoteCommand';
+export { ChangeNoteFretCommand } from '@coderline/alphatab/editor/commands/ChangeNoteFretCommand';
+export { ChangeNotePitchCommand } from '@coderline/alphatab/editor/commands/ChangeNotePitchCommand';
+export { ChangeBeatDurationCommand } from '@coderline/alphatab/editor/commands/ChangeBeatDurationCommand';
+export { ToggleBeatDotCommand } from '@coderline/alphatab/editor/commands/ToggleBeatDotCommand';
+export { AddBeatCommand } from '@coderline/alphatab/editor/commands/AddBeatCommand';
+export { RemoveBeatCommand } from '@coderline/alphatab/editor/commands/RemoveBeatCommand';
+export { ClearBeatNotesCommand } from '@coderline/alphatab/editor/commands/ClearBeatNotesCommand';
+export { ToggleNoteTieCommand } from '@coderline/alphatab/editor/commands/ToggleNoteTieCommand';

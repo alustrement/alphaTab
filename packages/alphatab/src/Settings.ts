@@ -6,6 +6,7 @@ import { PlayerMode, PlayerSettings } from '@coderline/alphatab/PlayerSettings';
 import { SettingsSerializer } from '@coderline/alphatab/generated/SettingsSerializer';
 import type { SettingsJson } from '@coderline/alphatab/generated/SettingsJson';
 import { ExporterSettings } from '@coderline/alphatab/ExporterSettings';
+import { EditorSettings } from '@coderline/alphatab/EditorSettings';
 
 /**
  * This public class contains instance specific settings for alphaTab
@@ -52,6 +53,12 @@ export class Settings {
      * @json_partial_names
      */
     public readonly exporter: ExporterSettings = new ExporterSettings();
+
+    /**
+     * All settings related to the interactive score editing features.
+     * @json_partial_names
+     */
+    public readonly editor: EditorSettings = new EditorSettings();
 
     public setSongBookModeSettings(): void {
         this.notation.notationMode = NotationMode.SongBook;

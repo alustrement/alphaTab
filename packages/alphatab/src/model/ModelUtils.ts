@@ -6,6 +6,7 @@ import { Duration } from '@coderline/alphatab/model/Duration';
 import type { KeySignature } from '@coderline/alphatab/model/KeySignature';
 import { KeySignatureType } from '@coderline/alphatab/model/KeySignatureType';
 import { MasterBar } from '@coderline/alphatab/model/MasterBar';
+import { Note } from '@coderline/alphatab/model/Note';
 import { NoteAccidentalMode } from '@coderline/alphatab/model/NoteAccidentalMode';
 import { HeaderFooterStyle, type Score, ScoreStyle, type ScoreSubElement } from '@coderline/alphatab/model/Score';
 import type { Track } from '@coderline/alphatab/model/Track';
@@ -1129,5 +1130,31 @@ export class ModelUtils {
         return keySignatureType === KeySignatureType.Minor
             ? ModelUtils._minorKeySignatureTonicDegrees[ksi]
             : ModelUtils._majorKeySignatureTonicDegrees[ksi];
+    }
+
+    /**
+     * Advances the global id counters of the model classes beyond the highest ids
+     * used in the given score. Scores restored via JSON deserialization keep their
+     * original ids without resetting the counters, without this sync newly created
+     * beats/notes could collide with existing ids (e.g. corrupting bounds lookups).
+     * @internal
+     */
+    public static syncIdCounters(score: Score): void {
+        for (const track of score.tracks) {
+            for (const staff of track.staves) {
+                for (const bar of staff.bars) {
+                    Bar.ensureIdGreaterThan(bar.id);
+                    for (const voice of bar.voices) {
+                        Voice.ensureIdGreaterThan(voice.id);
+                        for (const beat of voice.beats) {
+                            Beat.ensureIdGreaterThan(beat.id);
+                            for (const note of beat.notes) {
+                                Note.ensureIdGreaterThan(note.id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

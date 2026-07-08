@@ -26,21 +26,29 @@ export class Cursors {
     public readonly selectionWrapper: IContainer;
 
     /**
+     * Gets the element that indicates the current editing position (if the editor is enabled).
+     */
+    public readonly editCursor: IContainer | null;
+
+    /**
      * Initializes a new instance of the {@link Cursors} class.
      * @param cursorWrapper
      * @param barCursor
      * @param beatCursor
      * @param selectionWrapper
+     * @param editCursor
      */
     public constructor(
         cursorWrapper: IContainer,
         barCursor: IContainer,
         beatCursor: IContainer,
-        selectionWrapper: IContainer
+        selectionWrapper: IContainer,
+        editCursor: IContainer | null = null
     ) {
         this.cursorWrapper = cursorWrapper;
         this.barCursor = barCursor;
         this.beatCursor = beatCursor;
         this.selectionWrapper = selectionWrapper;
+        this.editCursor = editCursor;
     }
 }

@@ -207,6 +207,16 @@ export class Beat {
     }
 
     /**
+     * Ensures newly created beats get ids beyond the given one.
+     * @internal
+     */
+    public static ensureIdGreaterThan(id: number) {
+        if (Beat._globalBeatId <= id) {
+            Beat._globalBeatId = id + 1;
+        }
+    }
+
+    /**
      * Gets or sets the unique id of this beat.
      * @clone_ignore
      */

@@ -9,6 +9,7 @@ import { NotationSettingsJson } from "@coderline/alphatab/generated/NotationSett
 import { ImporterSettingsJson } from "@coderline/alphatab/generated/ImporterSettingsJson";
 import { PlayerSettingsJson } from "@coderline/alphatab/generated/PlayerSettingsJson";
 import { ExporterSettingsJson } from "@coderline/alphatab/generated/ExporterSettingsJson";
+import { EditorSettingsJson } from "@coderline/alphatab/generated/EditorSettingsJson";
 /**
  * This public class contains instance specific settings for alphaTab
  * @json
@@ -50,4 +51,9 @@ export interface SettingsJson {
      * @json_partial_names
      */
     exporter?: ExporterSettingsJson;
+    /**
+     * All settings related to the interactive score editing features.
+     * @json_partial_names
+     */
+    editor?: EditorSettingsJson;
 }

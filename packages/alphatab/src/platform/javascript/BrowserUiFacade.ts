@@ -229,6 +229,12 @@ export class BrowserUiFacade implements IUiFacade<unknown> {
         this._createStyleElements(settings);
         settings.display.resources.smuflFontFamilyName = this._webFont.familyName;
         this._file = settings.core.file;
+
+        if (settings.editor.enabled && element.element.tabIndex < 0) {
+            // make the host element focusable so keyboard input reaches the editor.
+            element.element.tabIndex = 0;
+            element.element.style.outline = 'none';
+        }
     }
 
     private _setupFontCheckers(settings: Settings): void {
@@ -822,11 +828,14 @@ export class BrowserUiFacade implements IUiFacade<unknown> {
 
         const barCursorContainer = this.createScalingElement();
         const beatCursorContainer = this.createScalingElement();
+        const editCursorContainer = this.createScalingElement();
 
         const barCursor: HTMLElement = barCursorContainer.element;
         barCursor.classList.add('at-cursor-bar');
         const beatCursor: HTMLElement = beatCursorContainer.element;
         beatCursor.classList.add('at-cursor-beat');
+        const editCursor: HTMLElement = editCursorContainer.element;
+        editCursor.classList.add('at-cursor-edit');
         // required css styles
         element.style.position = 'relative';
         element.style.textAlign = 'left';
@@ -856,16 +865,26 @@ export class BrowserUiFacade implements IUiFacade<unknown> {
         beatCursorContainer.centerAtPosition = true;
         beatCursorContainer.setBounds(0, 0, 1, 1);
 
+        editCursor.style.position = 'absolute';
+        editCursor.style.left = '0';
+        editCursor.style.top = '0';
+        editCursor.style.willChange = 'transform';
+        editCursorContainer.width = 1;
+        editCursorContainer.height = 1;
+        editCursorContainer.setBounds(-100, -100, 0, 0);
+
         // add cursors to UI
         element.insertBefore(cursorWrapper, element.firstChild);
         cursorWrapper.appendChild(selectionWrapper);
         cursorWrapper.appendChild(barCursor);
         cursorWrapper.appendChild(beatCursor);
+        cursorWrapper.appendChild(editCursor);
         return new Cursors(
             new HtmlElementContainer(cursorWrapper),
             barCursorContainer,
             beatCursorContainer,
-            new HtmlElementContainer(selectionWrapper)
+            new HtmlElementContainer(selectionWrapper),
+            editCursorContainer
         );
     }
 

@@ -6,6 +6,7 @@ export { LayoutMode } from '@coderline/alphatab/LayoutMode';
 export { StaveProfile } from '@coderline/alphatab/StaveProfile';
 export { ImporterSettings } from '@coderline/alphatab/ImporterSettings';
 export { ExporterSettings } from '@coderline/alphatab/ExporterSettings';
+export { EditorSettings } from '@coderline/alphatab/EditorSettings';
 export { FingeringMode, NotationMode, NotationSettings, TabRhythmMode, NotationElement } from '@coderline/alphatab/NotationSettings';
 export {
     PlayerSettings,
@@ -48,6 +49,7 @@ export { VersionInfo as meta } from '@coderline/alphatab/generated/VersionInfo';
 // alphaTab2.0: We should reliminate the big bundles but ship individual
 // modules which can be imported. e.g. import { Track } from '@coderline/alphatab/model/Track'
 // for this generally some reoganization is likely needed to void circular dependencies better
+export * as editor from '@coderline/alphatab/editor/_barrel';
 export * as importer from '@coderline/alphatab/importer/_barrel';
 export * as io from '@coderline/alphatab/io/_barrel';
 export * as exporter from '@coderline/alphatab/exporter/_barrel';

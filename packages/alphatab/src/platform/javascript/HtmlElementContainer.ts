@@ -1,6 +1,8 @@
 import type { IEventEmitter, IEventEmitterOfT } from '@coderline/alphatab/EventEmitter';
 import type { IContainer } from '@coderline/alphatab/platform/IContainer';
+import type { IKeyboardEventArgs } from '@coderline/alphatab/platform/IKeyboardEventArgs';
 import type { IMouseEventArgs } from '@coderline/alphatab/platform/IMouseEventArgs';
+import { BrowserKeyboardEventArgs } from '@coderline/alphatab/platform/javascript/BrowserKeyboardEventArgs';
 import { BrowserMouseEventArgs } from '@coderline/alphatab/platform/javascript/BrowserMouseEventArgs';
 import { Bounds } from '@coderline/alphatab/rendering/utils/Bounds';
 import { Lazy } from '@coderline/alphatab/util/Lazy';
@@ -129,6 +131,36 @@ export class HtmlElementContainer implements IHtmlElementContainer {
             }
         };
 
+        this.keyDown = {
+            on: (value: any) => {
+                const nativeListener: (e: KeyboardEvent) => void = e => {
+                    value(new BrowserKeyboardEventArgs(e));
+                };
+                this.element.addEventListener('keydown', nativeListener, true);
+                return () => {
+                    this.element.removeEventListener('keydown', nativeListener, true);
+                };
+            },
+            off: (_value: any) => {
+                // not supported due to wrapping
+            }
+        };
+
+        this.keyUp = {
+            on: (value: any) => {
+                const nativeListener: (e: KeyboardEvent) => void = e => {
+                    value(new BrowserKeyboardEventArgs(e));
+                };
+                this.element.addEventListener('keyup', nativeListener, true);
+                return () => {
+                    this.element.removeEventListener('keyup', nativeListener, true);
+                };
+            },
+            off: (_value: any) => {
+                // not supported due to wrapping
+            }
+        };
+
         const container = this;
         this.resize = {
             on: function (value: any) {
@@ -202,6 +234,16 @@ export class HtmlElementContainer implements IHtmlElementContainer {
      * This event occurs when a mouse/finger is released from the control.
      */
     public mouseUp: IEventEmitterOfT<IMouseEventArgs>;
+
+    /**
+     * This event occurs when a key is pressed while the control has focus.
+     */
+    public keyDown: IEventEmitterOfT<IKeyboardEventArgs>;
+
+    /**
+     * This event occurs when a key is released while the control has focus.
+     */
+    public keyUp: IEventEmitterOfT<IKeyboardEventArgs>;
 
     public appendChild(child: IContainer): void {
         this.element.appendChild((child as HtmlElementContainer).element);

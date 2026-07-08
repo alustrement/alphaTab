@@ -147,6 +147,16 @@ export class Note {
     }
 
     /**
+     * Ensures newly created notes get ids beyond the given one.
+     * @internal
+     */
+    public static ensureIdGreaterThan(id: number) {
+        if (Note.globalNoteId <= id) {
+            Note.globalNoteId = id + 1;
+        }
+    }
+
+    /**
      * Gets or sets the unique id of this note.
      * @clone_ignore
      */

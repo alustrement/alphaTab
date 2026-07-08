@@ -11,6 +11,7 @@ import { NotationSettingsSerializer } from "@coderline/alphatab/generated/Notati
 import { ImporterSettingsSerializer } from "@coderline/alphatab/generated/ImporterSettingsSerializer";
 import { PlayerSettingsSerializer } from "@coderline/alphatab/generated/PlayerSettingsSerializer";
 import { ExporterSettingsSerializer } from "@coderline/alphatab/generated/ExporterSettingsSerializer";
+import { EditorSettingsSerializer } from "@coderline/alphatab/generated/EditorSettingsSerializer";
 /**
  * @internal
  */
@@ -32,6 +33,7 @@ export class SettingsSerializer {
         o.set("importer", ImporterSettingsSerializer.toJson(obj.importer));
         o.set("player", PlayerSettingsSerializer.toJson(obj.player));
         o.set("exporter", ExporterSettingsSerializer.toJson(obj.exporter));
+        o.set("editor", EditorSettingsSerializer.toJson(obj.editor));
         return o;
     }
     public static setProperty(obj: Settings, property: string, v: unknown): boolean {
@@ -97,6 +99,17 @@ export class SettingsSerializer {
         for (const c of ["exporter"]) {
             if (property.indexOf(c) === 0) {
                 if (ExporterSettingsSerializer.setProperty(obj.exporter, property.substring(c.length), v)) {
+                    return true;
+                }
+            }
+        }
+        if (["editor"].indexOf(property) >= 0) {
+            EditorSettingsSerializer.fromJson(obj.editor, v as Map<string, unknown>);
+            return true;
+        }
+        for (const c of ["editor"]) {
+            if (property.indexOf(c) === 0) {
+                if (EditorSettingsSerializer.setProperty(obj.editor, property.substring(c.length), v)) {
                     return true;
                 }
             }

@@ -6,6 +6,7 @@
 export type { CoreSettingsJson } from "@coderline/alphatab/generated/CoreSettingsJson";
 export type { RenderingResourcesJson } from "@coderline/alphatab/generated/RenderingResourcesJson";
 export type { DisplaySettingsJson } from "@coderline/alphatab/generated/DisplaySettingsJson";
+export type { EditorSettingsJson } from "@coderline/alphatab/generated/EditorSettingsJson";
 export type { EngravingStemInfoJson } from "@coderline/alphatab/generated/EngravingStemInfoJson";
 export type { EngravingSettingsJson } from "@coderline/alphatab/generated/EngravingSettingsJson";
 export type { ExporterSettingsJson } from "@coderline/alphatab/generated/ExporterSettingsJson";

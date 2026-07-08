@@ -47,6 +47,16 @@ export class Voice {
     }
 
     /**
+     * Ensures newly created voices get ids beyond the given one.
+     * @internal
+     */
+    public static ensureIdGreaterThan(id: number) {
+        if (Voice._globalVoiceId <= id) {
+            Voice._globalVoiceId = id + 1;
+        }
+    }
+
+    /**
      * Gets or sets the unique id of this bar.
      */
     public id: number = Voice._globalVoiceId++;

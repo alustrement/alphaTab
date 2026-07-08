@@ -1,4 +1,5 @@
 import type { IEventEmitter, IEventEmitterOfT } from '@coderline/alphatab/EventEmitter';
+import type { IKeyboardEventArgs } from '@coderline/alphatab/platform/IKeyboardEventArgs';
 import type { IMouseEventArgs } from '@coderline/alphatab/platform/IMouseEventArgs';
 
 /**
@@ -82,4 +83,14 @@ export interface IContainer {
      * This event occurs when a mouse/finger is released from the control.
      */
     mouseUp: IEventEmitterOfT<IMouseEventArgs>;
+
+    /**
+     * This event occurs when a key is pressed while the control has focus.
+     */
+    keyDown: IEventEmitterOfT<IKeyboardEventArgs>;
+
+    /**
+     * This event occurs when a key is released while the control has focus.
+     */
+    keyUp: IEventEmitterOfT<IKeyboardEventArgs>;
 }
