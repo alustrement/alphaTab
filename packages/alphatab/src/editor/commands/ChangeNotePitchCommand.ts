@@ -1,4 +1,5 @@
 import { EditCommand } from '@coderline/alphatab/editor/EditCommand';
+import { EditModelHelpers } from '@coderline/alphatab/editor/EditModelHelpers';
 import { EditIntent, EditIntentKind, EditIntentLocation } from '@coderline/alphatab/editor/EditIntent';
 import type { Beat } from '@coderline/alphatab/model/Beat';
 import type { Note } from '@coderline/alphatab/model/Note';
@@ -44,14 +45,14 @@ export class ChangeNotePitchCommand extends EditCommand {
             EditIntentKind.ChangePitch,
             EditIntentLocation.fromBeat(this._note.beat, 0)
         );
-        intent.oldNoteValue = this._note.calculateRealValue(false, false);
+        intent.oldNoteValue = EditModelHelpers.writtenValueOf(this._note);
 
         this._oldOctave = this._note.octave;
         this._oldTone = this._note.tone;
         this._note.octave = this._newOctave;
         this._note.tone = this._newTone;
 
-        intent.noteValue = this._note.calculateRealValue(false, false);
+        intent.noteValue = EditModelHelpers.writtenValueOf(this._note);
         this._intent = intent;
     }
 

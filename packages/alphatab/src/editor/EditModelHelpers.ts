@@ -104,4 +104,13 @@ export class EditModelHelpers {
                 return duration;
         }
     }
+
+    /**
+     * The WRITTEN midi value of a note — its stored (sounding) value with the
+     * staff's display transposition removed; what the staff notation shows
+     * and what MusicXML `<pitch>` elements contain.
+     */
+    public static writtenValueOf(note: Note): number {
+        return note.calculateRealValue(false, false) - note.beat.voice.bar.staff.displayTranspositionPitch;
+    }
 }

@@ -249,7 +249,9 @@ export class ScoreEditor<TSettings> {
      * Enters a note of the given pitch at the cursor position.
      * On stringed staves the pitch is translated to a string/fret combination,
      * on other staves the pitch is stored as octave/tone.
-     * @param noteValue The midi value of the note to enter.
+     * @param noteValue The WRITTEN midi value of the note to enter (what
+     * appears on the staff — the staff's display transposition, e.g. a
+     * piccolo's octave, is applied internally for storage).
      */
     public setPitchAtCursor(noteValue: number): void {
         const beat = this._cursor.beat;
@@ -257,14 +259,17 @@ export class ScoreEditor<TSettings> {
         if (!beat || !staff) {
             return;
         }
+        // notes are STORED at sounding pitch and DISPLAYED shifted by the
+        // staff's display transposition — convert the written input value.
+        const storedValue = noteValue + staff.displayTranspositionPitch;
 
         if (staff.isStringed) {
             const maxFret = this._api.settings.editor.maxFret;
             let noteString = this._cursor.string;
-            let fret = EditModelHelpers.fretForValue(staff, noteString, noteValue, maxFret);
+            let fret = EditModelHelpers.fretForValue(staff, noteString, storedValue, maxFret);
             if (fret === -1) {
                 for (let s = 1; s <= staff.tuning.length; s++) {
-                    fret = EditModelHelpers.fretForValue(staff, s, noteValue, maxFret);
+                    fret = EditModelHelpers.fretForValue(staff, s, storedValue, maxFret);
                     if (fret !== -1) {
                         noteString = s;
                         break;
@@ -285,8 +290,8 @@ export class ScoreEditor<TSettings> {
                 this.executeCommand(new AddNoteCommand(beat, note));
             }
         } else {
-            const octave = Math.floor(noteValue / 12);
-            const tone = noteValue - octave * 12;
+            const octave = Math.floor(storedValue / 12);
+            const tone = storedValue - octave * 12;
             const existing = this._cursor.note;
             if (existing) {
                 this.executeCommand(new ChangeNotePitchCommand(existing, octave, tone));
@@ -365,7 +370,7 @@ export class ScoreEditor<TSettings> {
             return;
         }
         for (const note of beat.notes) {
-            if (note.calculateRealValue(false, false) === noteValue) {
+            if (EditModelHelpers.writtenValueOf(note) === noteValue) {
                 this.executeCommand(new RemoveNoteCommand(note));
                 return;
             }
@@ -981,9 +986,10 @@ export class ScoreEditor<TSettings> {
     private _repitchCursorNote(semitones: number): void {
         const note = this._cursor.note;
         if (note) {
-            const value = note.calculateRealValue(false, false) + semitones;
-            this.executeCommand(new ChangeNotePitchCommand(note, Math.floor(value / 12), ((value % 12) + 12) % 12));
-            this._cursor.noteValue = value;
+            const stored = note.calculateRealValue(false, false) + semitones;
+            this.executeCommand(new ChangeNotePitchCommand(note, Math.floor(stored / 12), ((stored % 12) + 12) % 12));
+            // the insertion reference stays in the written domain.
+            this._cursor.noteValue = stored - note.beat.voice.bar.staff.displayTranspositionPitch;
         } else {
             this._cursor.noteValue = this._cursor.noteValue + semitones;
         }

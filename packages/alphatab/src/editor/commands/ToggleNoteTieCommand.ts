@@ -1,4 +1,5 @@
 import { EditCommand } from '@coderline/alphatab/editor/EditCommand';
+import { EditModelHelpers } from '@coderline/alphatab/editor/EditModelHelpers';
 import { EditIntent, EditIntentKind, EditIntentLocation } from '@coderline/alphatab/editor/EditIntent';
 import type { Beat } from '@coderline/alphatab/model/Beat';
 import type { Note } from '@coderline/alphatab/model/Note';
@@ -47,7 +48,7 @@ export class ToggleNoteTieCommand extends EditCommand {
             EditIntentLocation.fromBeat(this._note.beat, this._note.isStringed ? this._note.string : 0)
         );
         intent.isTieDestination = this._newValue;
-        intent.noteValue = this._note.calculateRealValue(false, false);
+        intent.noteValue = EditModelHelpers.writtenValueOf(this._note);
         this._intent = intent;
     }
 

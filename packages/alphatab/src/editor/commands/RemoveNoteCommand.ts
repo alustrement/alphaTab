@@ -39,7 +39,7 @@ export class RemoveNoteCommand extends EditCommand {
             EditIntentKind.RemoveNote,
             EditIntentLocation.fromBeat(this._beat, this._note.isStringed ? this._note.string : 0)
         );
-        intent.noteValue = this._note.calculateRealValue(false, false);
+        intent.noteValue = EditModelHelpers.writtenValueOf(this._note);
         this._intent = intent;
 
         this._noteIndex = this._beat.notes.indexOf(this._note);
