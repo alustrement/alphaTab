@@ -308,6 +308,25 @@ export class ScoreEditor<TSettings> {
     }
 
     /**
+     * Removes the note of the cursor beat matching the given midi value
+     * (without transposition/harmonics applied) — for host input surfaces
+     * where clicking an existing note deletes it.
+     * @param noteValue The midi value of the note to remove.
+     */
+    public removeNoteWithValue(noteValue: number): void {
+        const beat = this._cursor.beat;
+        if (!beat) {
+            return;
+        }
+        for (const note of beat.notes) {
+            if (note.calculateRealValue(false, false) === noteValue) {
+                this.executeCommand(new RemoveNoteCommand(note));
+                return;
+            }
+        }
+    }
+
+    /**
      * Removes the beat at the cursor position. The last beat of a voice
      * is converted to a rest instead of being removed.
      */
