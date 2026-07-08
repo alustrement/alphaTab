@@ -7,12 +7,14 @@ import {
     type IEventEmitterOfT
 } from '@coderline/alphatab/EventEmitter';
 import { NotationMode } from '@coderline/alphatab/NotationSettings';
+import { CompositeEditCommand } from '@coderline/alphatab/editor/CompositeEditCommand';
 import type { EditCommand } from '@coderline/alphatab/editor/EditCommand';
 import { EditCommandHistory } from '@coderline/alphatab/editor/EditCommandHistory';
 import { EditCursor } from '@coderline/alphatab/editor/EditCursor';
 import { EditModelHelpers } from '@coderline/alphatab/editor/EditModelHelpers';
 import { FretInputState } from '@coderline/alphatab/editor/FretInputState';
 import { ScoreEditKind, ScoreEditedEventArgs } from '@coderline/alphatab/editor/ScoreEditedEventArgs';
+import { StaffHitInfo } from '@coderline/alphatab/editor/StaffHitInfo';
 import { AddBeatCommand } from '@coderline/alphatab/editor/commands/AddBeatCommand';
 import { AddNoteCommand } from '@coderline/alphatab/editor/commands/AddNoteCommand';
 import { ChangeBeatDurationCommand } from '@coderline/alphatab/editor/commands/ChangeBeatDurationCommand';
@@ -24,7 +26,9 @@ import { RemoveNoteCommand } from '@coderline/alphatab/editor/commands/RemoveNot
 import { ToggleBeatDotCommand } from '@coderline/alphatab/editor/commands/ToggleBeatDotCommand';
 import { ToggleNoteTieCommand } from '@coderline/alphatab/editor/commands/ToggleNoteTieCommand';
 import { Beat } from '@coderline/alphatab/model/Beat';
+import { Clef } from '@coderline/alphatab/model/Clef';
 import { Duration } from '@coderline/alphatab/model/Duration';
+import { GraceType } from '@coderline/alphatab/model/GraceType';
 import { ModelUtils } from '@coderline/alphatab/model/ModelUtils';
 import { Note } from '@coderline/alphatab/model/Note';
 import type { Cursors } from '@coderline/alphatab/platform/Cursors';
@@ -308,6 +312,48 @@ export class ScoreEditor<TSettings> {
     }
 
     /**
+     * Repeats the previous beat onto the cursor beat: notes, duration and
+     * dots are copied as one undoable step (MuseScore's "repeat" — a fast way
+     * to enter riffs).
+     */
+    public repeatPreviousBeatAtCursor(): void {
+        const beat = this._cursor.beat;
+        if (!beat) {
+            return;
+        }
+        let source = beat.previousBeat;
+        while (source && source.graceType !== GraceType.None) {
+            source = source.previousBeat;
+        }
+        if (!source || source.isEmpty || source.notes.length === 0) {
+            return;
+        }
+
+        const commands: EditCommand[] = [];
+        if (beat.notes.length > 0) {
+            commands.push(new ClearBeatNotesCommand(beat));
+        }
+        if (beat.duration !== source.duration) {
+            commands.push(new ChangeBeatDurationCommand(beat, source.duration));
+        }
+        if (beat.dots !== source.dots) {
+            commands.push(new ToggleBeatDotCommand(beat, source.dots));
+        }
+        for (const sourceNote of source.notes) {
+            const note = new Note();
+            if (sourceNote.isStringed) {
+                note.string = sourceNote.string;
+                note.fret = sourceNote.fret;
+            } else {
+                note.octave = sourceNote.octave;
+                note.tone = sourceNote.tone;
+            }
+            commands.push(new AddNoteCommand(beat, note));
+        }
+        this.executeCommand(new CompositeEditCommand('Repeat beat', commands));
+    }
+
+    /**
      * Removes the note of the cursor beat matching the given midi value
      * (without transposition/harmonics applied) — for host input surfaces
      * where clicking an existing note deletes it.
@@ -488,6 +534,126 @@ export class ScoreEditor<TSettings> {
     }
 
     /**
+     * Resolves what a position on the rendered score points at, for host
+     * note-input surfaces (ghost note preview, click-to-enter): the beat under
+     * the position plus — on standard staves — the diatonic pitch the vertical
+     * position corresponds to (natural, based on the bar's clef) and the
+     * snapped coordinates of that staff step.
+     * @param relX X-position relative to the rendered canvas element.
+     * @param relY Y-position relative to the rendered canvas element.
+     * @returns The hit information, or null when no beat is at the position.
+     */
+    public getStaffPositionAt(relX: number, relY: number): StaffHitInfo | null {
+        const boundsLookup = this._api.renderer.boundsLookup;
+        if (!boundsLookup) {
+            return null;
+        }
+        // getBeatAtPos ignores which STAFF the y-position is in (player
+        // semantics) — resolve the per-staff bar ourselves, then the beat.
+        const anyBeat = boundsLookup.getBeatAtPos(relX, relY);
+        if (!anyBeat) {
+            return null;
+        }
+        const anyBounds = boundsLookup.findBeat(anyBeat);
+        if (!anyBounds) {
+            return null;
+        }
+        let staffBar = anyBounds.barBounds;
+        for (const candidate of anyBounds.barBounds.masterBarBounds.bars) {
+            if (relY >= candidate.realBounds.y && relY <= candidate.realBounds.y + candidate.realBounds.h) {
+                staffBar = candidate;
+                break;
+            }
+        }
+        const staffBeatBounds = staffBar.findBeatAtPos(relX);
+        let beat = staffBeatBounds ? staffBeatBounds.beat : anyBeat;
+        if (beat.isEmpty) {
+            // gap placeholder voices have no notation counterpart: retarget
+            // the closest real beat of the bar's other voices.
+            let best: Beat | null = null;
+            let bestDistance = 0;
+            for (const voice of beat.voice.bar.voices) {
+                for (const candidate of voice.beats) {
+                    if (candidate.isEmpty) {
+                        continue;
+                    }
+                    const candidateBounds = boundsLookup.findBeat(candidate);
+                    if (!candidateBounds) {
+                        continue;
+                    }
+                    const distance = Math.abs(candidateBounds.visualBounds.x - relX);
+                    if (!best || distance < bestDistance) {
+                        best = candidate;
+                        bestDistance = distance;
+                    }
+                }
+            }
+            if (!best) {
+                return null;
+            }
+            beat = best;
+        }
+        const beatBounds = boundsLookup.findBeat(beat);
+        if (!beatBounds) {
+            return null;
+        }
+
+        const staff = beat.voice.bar.staff;
+        const bounds = beatBounds.barBounds;
+        // the content-independent staff line box; visual bounds as fallback.
+        const lineTop = bounds.firstLineY >= 0 ? bounds.firstLineY : bounds.visualBounds.y;
+        const lineBottom = bounds.lastLineY >= 0 ? bounds.lastLineY : bounds.visualBounds.y + bounds.visualBounds.h;
+        const hit = new StaffHitInfo();
+        hit.beat = beat;
+        hit.isStringed = staff.isStringed;
+        hit.snapX = beatBounds.visualBounds.x;
+
+        if (staff.isStringed) {
+            const stringCount = staff.tuning.length;
+            const lineHeight = (lineBottom - lineTop) / (stringCount - 1);
+            const lineIndex = Math.max(0, Math.min(stringCount - 1, Math.round((relY - lineTop) / lineHeight)));
+            hit.string = stringCount - lineIndex;
+            hit.snapY = lineTop + lineIndex * lineHeight;
+            return hit;
+        }
+
+        // the top staff line's diatonic reference note per clef.
+        let topStep: number; // 0 = C, 1 = D … 6 = B
+        let topOctave: number;
+        switch (beat.voice.bar.clef) {
+            case Clef.G2:
+                topStep = 3; // F5
+                topOctave = 5;
+                break;
+            case Clef.F4:
+                topStep = 5; // A3
+                topOctave = 3;
+                break;
+            case Clef.C3:
+                topStep = 4; // G4
+                topOctave = 4;
+                break;
+            case Clef.C4:
+                topStep = 2; // E4
+                topOctave = 4;
+                break;
+            default:
+                return null; // neutral/percussion: no pitch axis
+        }
+
+        const halfStep = (lineBottom - lineTop) / ((staff.standardNotationLineCount - 1) * 2);
+        const stepsFromTop = Math.round((relY - lineTop) / halfStep);
+        // walk the diatonic scale downwards from the top line.
+        const diatonicIndex = topStep + topOctave * 7 - stepsFromTop;
+        const octave = Math.floor(diatonicIndex / 7);
+        const step = ((diatonicIndex % 7) + 7) % 7;
+        const semitones: number[] = [0, 2, 4, 5, 7, 9, 11];
+        hit.midi = (octave + 1) * 12 + semitones[step];
+        hit.snapY = lineTop + stepsFromTop * halfStep;
+        return hit;
+    }
+
+    /**
      * Connects the editor to the created cursor UI elements.
      * @internal
      */
@@ -658,8 +824,7 @@ export class ScoreEditor<TSettings> {
                 if (this._cursor.staff!.isStringed) {
                     this._moveCursor(() => this._cursor.moveStringUp());
                 } else {
-                    this._cursor.noteValue = this._cursor.noteValue + 1;
-                    (this.cursorChanged as EventEmitterOfT<EditCursor>).trigger(this._cursor);
+                    this._repitchCursorNote(1);
                 }
                 args.preventDefault();
                 return;
@@ -667,8 +832,7 @@ export class ScoreEditor<TSettings> {
                 if (this._cursor.staff!.isStringed) {
                     this._moveCursor(() => this._cursor.moveStringDown());
                 } else {
-                    this._cursor.noteValue = this._cursor.noteValue - 1;
-                    (this.cursorChanged as EventEmitterOfT<EditCursor>).trigger(this._cursor);
+                    this._repitchCursorNote(-1);
                 }
                 args.preventDefault();
                 return;
@@ -740,8 +904,11 @@ export class ScoreEditor<TSettings> {
                 args.preventDefault();
                 return;
             case 'r':
-            case 'R':
                 this.makeRestAtCursor();
+                args.preventDefault();
+                return;
+            case 'R':
+                this.repeatPreviousBeatAtCursor();
                 args.preventDefault();
                 return;
             case 't':
@@ -804,6 +971,23 @@ export class ScoreEditor<TSettings> {
             default:
                 return -1;
         }
+    }
+
+    /**
+     * On standard staves the arrow keys repitch the note under the cursor by
+     * the given semitones (MuseScore behavior); without a note they adjust
+     * the insertion pitch instead.
+     */
+    private _repitchCursorNote(semitones: number): void {
+        const note = this._cursor.note;
+        if (note) {
+            const value = note.calculateRealValue(false, false) + semitones;
+            this.executeCommand(new ChangeNotePitchCommand(note, Math.floor(value / 12), ((value % 12) + 12) % 12));
+            this._cursor.noteValue = value;
+        } else {
+            this._cursor.noteValue = this._cursor.noteValue + semitones;
+        }
+        (this.cursorChanged as EventEmitterOfT<EditCursor>).trigger(this._cursor);
     }
 
     private _moveCursor(move: () => boolean): void {

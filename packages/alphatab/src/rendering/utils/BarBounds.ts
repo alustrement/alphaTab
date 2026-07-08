@@ -19,6 +19,19 @@ export class BarBounds {
     public visualBounds!: Bounds;
 
     /**
+     * The absolute Y position of the first (top) staff/tab line of this bar,
+     * or -1 when the renderer has no staff lines. Unlike {@link visualBounds}
+     * this is content-independent — the geometric staff line box.
+     */
+    public firstLineY: number = -1;
+
+    /**
+     * The absolute Y position of the last (bottom) staff/tab line of this bar,
+     * or -1 when the renderer has no staff lines.
+     */
+    public lastLineY: number = -1;
+
+    /**
      * Gets or sets the actual bounds of the elements in this bar including whitespace areas.
      */
     public realBounds!: Bounds;
@@ -66,6 +79,10 @@ export class BarBounds {
     public finish(scale: number = 1): void {
         this.realBounds.scaleWith(scale);
         this.visualBounds.scaleWith(scale);
+        if (this.firstLineY >= 0) {
+            this.firstLineY *= scale;
+            this.lastLineY *= scale;
+        }
 
         this.beats.sort((a, b) => a.realBounds.x - b.realBounds.x);
         for (const b of this.beats) {

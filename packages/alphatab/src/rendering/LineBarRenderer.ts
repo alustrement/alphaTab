@@ -20,6 +20,7 @@ import { SpacingGlyph } from '@coderline/alphatab/rendering/glyphs/SpacingGlyph'
 import { BeamDirection } from '@coderline/alphatab/rendering/utils/BeamDirection';
 import { BeamingHelper, BeamingHelperDrawInfo } from '@coderline/alphatab/rendering/utils/BeamingHelper';
 import { ElementStyleHelper } from '@coderline/alphatab/rendering/utils/ElementStyleHelper';
+import type { MasterBarBounds } from '@coderline/alphatab/rendering/utils/MasterBarBounds';
 
 /**
  * This is a base class for any bar renderer which renders music notation on a staff
@@ -91,6 +92,17 @@ export abstract class LineBarRenderer extends BarRendererBase {
 
     public getLineHeight(line: number): number {
         return this.lineOffset * line;
+    }
+
+    public override buildBoundingsLookup(masterBarBounds: MasterBarBounds, cx: number, cy: number): void {
+        super.buildBoundingsLookup(masterBarBounds, cx, cy);
+        // record the content-independent staff line box for position→pitch
+        // mapping (the visual bounds grow with the rendered content).
+        const barBounds = masterBarBounds.bars[masterBarBounds.bars.length - 1];
+        if (this.drawnLineCount > 1) {
+            barBounds.firstLineY = cy + this.y + this.getLineY(0);
+            barBounds.lastLineY = cy + this.y + this.getLineY(this.drawnLineCount - 1);
+        }
     }
 
     protected abstract get flagsSubElement(): BeatSubElement;
