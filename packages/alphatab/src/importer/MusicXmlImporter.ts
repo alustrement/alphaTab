@@ -3518,6 +3518,11 @@ export class MusicXmlImporter extends ScoreImporter {
                 case 'string':
                     if (note) {
                         note.string = beat.voice.bar.staff.tuning.length - Number.parseInt(c.innerText, 10) + 1;
+                        // the note was registered in the beat's string lookup at addNote
+                        // time, before <string> was known — re-register it, otherwise
+                        // getNoteOnString() (hammer/pull destinations, editor cursor)
+                        // never finds notes of MusicXML-imported scores.
+                        beat.noteStringLookup.set(note.string, note);
                     }
                     break;
                 case 'hammer-on':
