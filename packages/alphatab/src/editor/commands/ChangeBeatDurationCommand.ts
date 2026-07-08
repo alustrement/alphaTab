@@ -1,4 +1,5 @@
 import { EditCommand } from '@coderline/alphatab/editor/EditCommand';
+import { EditIntent, EditIntentKind, EditIntentLocation } from '@coderline/alphatab/editor/EditIntent';
 import type { Beat } from '@coderline/alphatab/model/Beat';
 import { Duration } from '@coderline/alphatab/model/Duration';
 
@@ -11,6 +12,7 @@ export class ChangeBeatDurationCommand extends EditCommand {
     private readonly _beat: Beat;
     private readonly _newDuration: Duration;
     private _oldDuration: Duration = Duration.Quarter;
+    private _intent: EditIntent | null = null;
 
     public constructor(beat: Beat, newDuration: Duration) {
         super();
@@ -20,6 +22,10 @@ export class ChangeBeatDurationCommand extends EditCommand {
 
     public get description(): string {
         return 'Change duration';
+    }
+
+    public override get intent(): EditIntent | null {
+        return this._intent;
     }
 
     public get firstAffectedMasterBarIndex(): number {
@@ -33,6 +39,14 @@ export class ChangeBeatDurationCommand extends EditCommand {
     public execute(): void {
         this._oldDuration = this._beat.duration;
         this._beat.duration = this._newDuration;
+
+        const intent = new EditIntent(
+            EditIntentKind.ChangeDuration,
+            EditIntentLocation.fromBeat(this._beat, 0)
+        );
+        intent.duration = this._newDuration;
+        intent.dots = this._beat.dots;
+        this._intent = intent;
     }
 
     public undo(): void {

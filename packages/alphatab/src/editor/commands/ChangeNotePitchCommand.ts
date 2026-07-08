@@ -1,4 +1,5 @@
 import { EditCommand } from '@coderline/alphatab/editor/EditCommand';
+import { EditIntent, EditIntentKind, EditIntentLocation } from '@coderline/alphatab/editor/EditIntent';
 import type { Beat } from '@coderline/alphatab/model/Beat';
 import type { Note } from '@coderline/alphatab/model/Note';
 
@@ -13,6 +14,7 @@ export class ChangeNotePitchCommand extends EditCommand {
     private readonly _newTone: number;
     private _oldOctave: number = -1;
     private _oldTone: number = -1;
+    private _intent: EditIntent | null = null;
 
     public constructor(note: Note, newOctave: number, newTone: number) {
         super();
@@ -25,6 +27,10 @@ export class ChangeNotePitchCommand extends EditCommand {
         return 'Change pitch';
     }
 
+    public override get intent(): EditIntent | null {
+        return this._intent;
+    }
+
     public get firstAffectedMasterBarIndex(): number {
         return this._note.beat.voice.bar.index;
     }
@@ -34,10 +40,19 @@ export class ChangeNotePitchCommand extends EditCommand {
     }
 
     public execute(): void {
+        const intent = new EditIntent(
+            EditIntentKind.ChangePitch,
+            EditIntentLocation.fromBeat(this._note.beat, 0)
+        );
+        intent.oldNoteValue = this._note.calculateRealValue(false, false);
+
         this._oldOctave = this._note.octave;
         this._oldTone = this._note.tone;
         this._note.octave = this._newOctave;
         this._note.tone = this._newTone;
+
+        intent.noteValue = this._note.calculateRealValue(false, false);
+        this._intent = intent;
     }
 
     public undo(): void {

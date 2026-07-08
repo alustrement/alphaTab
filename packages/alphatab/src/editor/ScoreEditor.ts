@@ -137,7 +137,7 @@ export class ScoreEditor<TSettings> {
      */
     public executeCommand(command: EditCommand, mergeWithPrevious: boolean = false): void {
         this._history.execute(command, mergeWithPrevious);
-        this._afterEdit(command, ScoreEditKind.Command);
+        this._afterEdit(command, ScoreEditKind.Command, mergeWithPrevious);
     }
 
     /**
@@ -357,6 +357,47 @@ export class ScoreEditor<TSettings> {
         if (beat && beat.notes.length > 0) {
             this.executeCommand(new ClearBeatNotesCommand(beat));
         }
+    }
+
+    /**
+     * Places the edit cursor at the given index-based location, clamping every
+     * index to the current score shape. Intended for host applications
+     * re-anchoring the cursor after replacing the score (e.g. an external
+     * model reload).
+     */
+    public moveCursorToLocation(
+        trackIndex: number,
+        staffIndex: number,
+        barIndex: number,
+        voiceIndex: number,
+        beatIndex: number,
+        noteString: number = 0
+    ): void {
+        const score = this._api.score;
+        if (!score || score.tracks.length === 0) {
+            return;
+        }
+        const clamp = (value: number, max: number) => Math.max(0, Math.min(value, max - 1));
+        const track = score.tracks[clamp(trackIndex, score.tracks.length)];
+        const staff = track.staves[clamp(staffIndex, track.staves.length)];
+        if (staff.bars.length === 0) {
+            return;
+        }
+        const bar = staff.bars[clamp(barIndex, staff.bars.length)];
+        if (bar.voices.length === 0) {
+            return;
+        }
+        const voice = bar.voices[clamp(voiceIndex, bar.voices.length)];
+        if (voice.beats.length === 0) {
+            return;
+        }
+        this._cursor.moveToBeat(voice.beats[clamp(beatIndex, voice.beats.length)]);
+        if (noteString > 0 && staff.isStringed) {
+            this._cursor.string = Math.max(1, Math.min(noteString, staff.tuning.length));
+        }
+        this._fretInput.reset();
+        (this.cursorChanged as EventEmitterOfT<EditCursor>).trigger(this._cursor);
+        this._placeEditCursor();
     }
 
     /**
@@ -679,7 +720,7 @@ export class ScoreEditor<TSettings> {
         return true;
     }
 
-    private _afterEdit(command: EditCommand, kind: ScoreEditKind): void {
+    private _afterEdit(command: EditCommand, kind: ScoreEditKind, mergeWithPrevious: boolean = false): void {
         const api = this._api;
         const score = api.score;
         if (!score) {
@@ -712,7 +753,9 @@ export class ScoreEditor<TSettings> {
         this._midiRefresh();
 
         // 6. notify.
-        (this.scoreEdited as EventEmitterOfT<ScoreEditedEventArgs>).trigger(new ScoreEditedEventArgs(command, kind));
+        (this.scoreEdited as EventEmitterOfT<ScoreEditedEventArgs>).trigger(
+            new ScoreEditedEventArgs(command, kind, mergeWithPrevious)
+        );
         (this.historyChanged as EventEmitter).trigger();
 
         // 7. the edit cursor is re-placed via postRenderFinished once the render completes.

@@ -1,4 +1,5 @@
 import { EditCommand } from '@coderline/alphatab/editor/EditCommand';
+import { EditIntent, EditIntentKind, EditIntentLocation } from '@coderline/alphatab/editor/EditIntent';
 import { EditModelHelpers } from '@coderline/alphatab/editor/EditModelHelpers';
 import type { Beat } from '@coderline/alphatab/model/Beat';
 import type { Note } from '@coderline/alphatab/model/Note';
@@ -11,6 +12,7 @@ import type { Note } from '@coderline/alphatab/model/Note';
 export class ClearBeatNotesCommand extends EditCommand {
     private readonly _beat: Beat;
     private _removedNotes: Note[] = [];
+    private _intent: EditIntent | null = null;
 
     public constructor(beat: Beat) {
         super();
@@ -21,11 +23,17 @@ export class ClearBeatNotesCommand extends EditCommand {
         return 'Convert to rest';
     }
 
+    public override get intent(): EditIntent | null {
+        return this._intent;
+    }
+
     public get firstAffectedMasterBarIndex(): number {
         return this._beat.voice.bar.index;
     }
 
     public execute(): void {
+        this._intent = new EditIntent(EditIntentKind.ClearNotes, EditIntentLocation.fromBeat(this._beat, 0));
+
         this._removedNotes = [];
         while (this._beat.notes.length > 0) {
             const note = this._beat.notes[this._beat.notes.length - 1];

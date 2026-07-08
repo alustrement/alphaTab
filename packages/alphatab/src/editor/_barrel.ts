@@ -1,3 +1,4 @@
+export { EditIntent, EditIntentKind, EditIntentLocation } from '@coderline/alphatab/editor/EditIntent';
 export { EditCommand } from '@coderline/alphatab/editor/EditCommand';
 export { CompositeEditCommand } from '@coderline/alphatab/editor/CompositeEditCommand';
 export { EditCommandHistory } from '@coderline/alphatab/editor/EditCommandHistory';

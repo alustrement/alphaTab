@@ -1,4 +1,5 @@
 import { EditCommand } from '@coderline/alphatab/editor/EditCommand';
+import { EditIntent, EditIntentKind, EditIntentLocation } from '@coderline/alphatab/editor/EditIntent';
 import type { Beat } from '@coderline/alphatab/model/Beat';
 import type { Note } from '@coderline/alphatab/model/Note';
 
@@ -10,6 +11,7 @@ export class AddNoteCommand extends EditCommand {
     private readonly _beat: Beat;
     private readonly _note: Note;
     private _wasEmpty: boolean = false;
+    private _intent: EditIntent | null = null;
 
     public constructor(beat: Beat, note: Note) {
         super();
@@ -19,6 +21,10 @@ export class AddNoteCommand extends EditCommand {
 
     public get description(): string {
         return 'Add note';
+    }
+
+    public override get intent(): EditIntent | null {
+        return this._intent;
     }
 
     public get firstAffectedMasterBarIndex(): number {
@@ -33,6 +39,14 @@ export class AddNoteCommand extends EditCommand {
         this._wasEmpty = this._beat.isEmpty;
         this._beat.isEmpty = false;
         this._beat.addNote(this._note);
+
+        const intent = new EditIntent(
+            EditIntentKind.AddNote,
+            EditIntentLocation.fromBeat(this._beat, this._note.isStringed ? this._note.string : 0)
+        );
+        intent.fret = this._note.isStringed ? this._note.fret : -1;
+        intent.noteValue = this._note.calculateRealValue(false, false);
+        this._intent = intent;
     }
 
     public undo(): void {

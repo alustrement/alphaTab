@@ -34,8 +34,16 @@ export class ScoreEditedEventArgs {
      */
     public readonly kind: ScoreEditKind;
 
-    public constructor(command: EditCommand, kind: ScoreEditKind) {
+    /**
+     * Whether this command was merged into the previous undo entry
+     * (e.g. the second digit of a multi-digit fret input). Host applications
+     * mirroring the edit history should merge their entries accordingly.
+     */
+    public readonly mergeWithPrevious: boolean;
+
+    public constructor(command: EditCommand, kind: ScoreEditKind, mergeWithPrevious: boolean = false) {
         this.command = command;
         this.kind = kind;
+        this.mergeWithPrevious = mergeWithPrevious;
     }
 }

@@ -1,4 +1,5 @@
 import { EditCommand } from '@coderline/alphatab/editor/EditCommand';
+import { EditIntent, EditIntentKind, EditIntentLocation } from '@coderline/alphatab/editor/EditIntent';
 import type { Beat } from '@coderline/alphatab/model/Beat';
 import type { Note } from '@coderline/alphatab/model/Note';
 
@@ -11,6 +12,7 @@ export class ToggleNoteTieCommand extends EditCommand {
     private readonly _note: Note;
     private readonly _newValue: boolean;
     private _oldValue: boolean = false;
+    private _intent: EditIntent | null = null;
 
     public constructor(note: Note, isTieDestination: boolean) {
         super();
@@ -20,6 +22,10 @@ export class ToggleNoteTieCommand extends EditCommand {
 
     public get description(): string {
         return 'Toggle tie';
+    }
+
+    public override get intent(): EditIntent | null {
+        return this._intent;
     }
 
     public get firstAffectedMasterBarIndex(): number {
@@ -35,6 +41,14 @@ export class ToggleNoteTieCommand extends EditCommand {
     public execute(): void {
         this._oldValue = this._note.isTieDestination;
         this._note.isTieDestination = this._newValue;
+
+        const intent = new EditIntent(
+            EditIntentKind.ToggleTie,
+            EditIntentLocation.fromBeat(this._note.beat, this._note.isStringed ? this._note.string : 0)
+        );
+        intent.isTieDestination = this._newValue;
+        intent.noteValue = this._note.calculateRealValue(false, false);
+        this._intent = intent;
     }
 
     public undo(): void {

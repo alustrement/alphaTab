@@ -1,5 +1,6 @@
 import { AlphaTabError, AlphaTabErrorType } from '@coderline/alphatab/AlphaTabError';
 import { EditCommand } from '@coderline/alphatab/editor/EditCommand';
+import { EditIntent, EditIntentKind, EditIntentLocation } from '@coderline/alphatab/editor/EditIntent';
 import { EditModelHelpers } from '@coderline/alphatab/editor/EditModelHelpers';
 import type { Beat } from '@coderline/alphatab/model/Beat';
 import type { Voice } from '@coderline/alphatab/model/Voice';
@@ -14,6 +15,7 @@ export class RemoveBeatCommand extends EditCommand {
     private readonly _voice: Voice;
     private readonly _beat: Beat;
     private _beatIndex: number = -1;
+    private _intent: EditIntent | null = null;
 
     public constructor(beat: Beat) {
         super();
@@ -23,6 +25,10 @@ export class RemoveBeatCommand extends EditCommand {
 
     public get description(): string {
         return 'Remove beat';
+    }
+
+    public override get intent(): EditIntent | null {
+        return this._intent;
     }
 
     public get firstAffectedMasterBarIndex(): number {
@@ -38,6 +44,10 @@ export class RemoveBeatCommand extends EditCommand {
             );
         }
         this._beatIndex = this._voice.beats.indexOf(this._beat);
+        this._intent = new EditIntent(
+            EditIntentKind.RemoveBeat,
+            EditIntentLocation.fromVoice(this._voice, this._beatIndex)
+        );
         EditModelHelpers.removeBeatAt(this._voice, this._beatIndex);
     }
 

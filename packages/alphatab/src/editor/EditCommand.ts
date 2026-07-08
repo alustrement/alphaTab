@@ -1,3 +1,4 @@
+import type { EditIntent } from '@coderline/alphatab/editor/EditIntent';
 import type { Beat } from '@coderline/alphatab/model/Beat';
 
 /**
@@ -12,6 +13,16 @@ export abstract class EditCommand {
      * A human readable description of this command (e.g. for undo menus).
      */
     public abstract get description(): string;
+
+    /**
+     * A model-independent description of this edit for host applications
+     * mirroring edits onto an external score model (e.g. MusicXML).
+     * Captured during {@link execute}, null before execution or when
+     * the command has no host-relevant semantics.
+     */
+    public get intent(): EditIntent | null {
+        return null;
+    }
 
     /**
      * The index of the first master bar whose layout is affected by this command.
