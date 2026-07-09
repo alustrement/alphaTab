@@ -993,16 +993,20 @@ export abstract class LineBarRenderer extends BarRendererBase {
                             maxNoteY = topY;
                         }
 
-                        let bottomY: number = this.voiceContainer.getLowestNoteY(
-                            h.beatOfLowestNote,
-                            NoteYPosition.Bottom
-                        );
-                        if (h.hasTuplet && tupletDirection !== direction) {
-                            bottomY += this.tupletSize + this.tupletOffset;
-                        }
+                        // helpers made only of rests (e.g. in numbered
+                        // notation, which paints every helper) have no notes.
+                        if (h.lowestNoteInHelper) {
+                            let bottomY: number = this.voiceContainer.getLowestNoteY(
+                                h.beatOfLowestNote,
+                                NoteYPosition.Bottom
+                            );
+                            if (h.hasTuplet && tupletDirection !== direction) {
+                                bottomY += this.tupletSize + this.tupletOffset;
+                            }
 
-                        if (bottomY > minNoteY) {
-                            minNoteY = bottomY;
+                            if (bottomY > minNoteY) {
+                                minNoteY = bottomY;
+                            }
                         }
                     } else {
                         let bottomY = Math.max(drawingInfo.startY, drawingInfo.endY);
@@ -1015,13 +1019,18 @@ export abstract class LineBarRenderer extends BarRendererBase {
                             minNoteY = bottomY;
                         }
 
-                        let topY: number = this.voiceContainer.getHighestNoteY(h.beatOfHighestNote, NoteYPosition.Top);
-                        if (h.hasTuplet && tupletDirection !== direction) {
-                            topY -= this.tupletSize + this.tupletOffset;
-                        }
+                        if (h.highestNoteInHelper) {
+                            let topY: number = this.voiceContainer.getHighestNoteY(
+                                h.beatOfHighestNote,
+                                NoteYPosition.Top
+                            );
+                            if (h.hasTuplet && tupletDirection !== direction) {
+                                topY -= this.tupletSize + this.tupletOffset;
+                            }
 
-                        if (topY < maxNoteY) {
-                            maxNoteY = topY;
+                            if (topY < maxNoteY) {
+                                maxNoteY = topY;
+                            }
                         }
                     }
                 }
@@ -1123,7 +1132,9 @@ export abstract class LineBarRenderer extends BarRendererBase {
         const barDrawingShift = this.applyBarShift(h, direction, drawingInfo, barCount);
 
         // 4. let middle elements shift up/down
-        if (h.beats.length > 1) {
+        // (skipped for note-less helpers — rest-only groups have no
+        // highest/lowest note to anchor the shift to)
+        if (h.beats.length > 1 && h.highestNoteInHelper && h.lowestNoteInHelper) {
             // check if highest note shifts bar up or down
             if (direction === BeamDirection.Up) {
                 const yNeededForHighestNote = barDrawingShift + this.getFlagTopY(h.beatOfHighestNote, direction);
