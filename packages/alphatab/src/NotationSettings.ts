@@ -382,7 +382,13 @@ export enum NotationElement {
     /**
      * The slide text shown on slurs.
      */
-    EffectSlideText = 57
+    EffectSlideText = 57,
+
+    /**
+     * The "rendered by alphaTab" attribution shown below the music sheet.
+     * Visible by default.
+     */
+    RenderedByAttribution = 58
 }
 
 /**
