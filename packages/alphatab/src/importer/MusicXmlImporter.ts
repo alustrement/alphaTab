@@ -178,9 +178,17 @@ class TrackInfo {
             articulation.elementType,
             staffLine,
             articulation.outputMidiNumber,
-            articulation.noteHeadDefault,
-            articulation.noteHeadHalf,
-            articulation.noteHeadWhole,
+            // instruments without a known articulation match still need
+            // visible note heads — fall back to the standard shapes.
+            articulation.noteHeadDefault === MusicFontSymbol.None
+                ? MusicFontSymbol.NoteheadBlack
+                : articulation.noteHeadDefault,
+            articulation.noteHeadHalf === MusicFontSymbol.None
+                ? MusicFontSymbol.NoteheadHalf
+                : articulation.noteHeadHalf,
+            articulation.noteHeadWhole === MusicFontSymbol.None
+                ? MusicFontSymbol.NoteheadWhole
+                : articulation.noteHeadWhole,
             articulation.techniqueSymbol,
             articulation.techniqueSymbolPlacement
         );
@@ -706,6 +714,20 @@ export class MusicXmlImporter extends ScoreImporter {
         articulation.id = PercussionMapper.tryMatchKnownArticulation(articulation);
         if (articulation.id < 0) {
             articulation.id = 0;
+        } else {
+            // adopt the known articulation's display properties (note heads,
+            // technique symbol) — without them percussion notes would render
+            // without note heads (MusicXML only carries the midi number here;
+            // per-note <notehead> elements still override later).
+            const known = PercussionMapper.getArticulationById(articulation.id);
+            if (known) {
+                articulation.elementType = known.elementType;
+                articulation.noteHeadDefault = known.noteHeadDefault;
+                articulation.noteHeadHalf = known.noteHeadHalf;
+                articulation.noteHeadWhole = known.noteHeadWhole;
+                articulation.techniqueSymbol = known.techniqueSymbol;
+                articulation.techniqueSymbolPlacement = known.techniqueSymbolPlacement;
+            }
         }
     }
 
