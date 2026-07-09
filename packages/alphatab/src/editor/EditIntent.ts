@@ -138,6 +138,19 @@ export class EditIntent {
      */
     public isTieDestination: boolean = false;
 
+    /**
+     * The General MIDI percussion number of the affected note when it is a
+     * percussion note (-1 otherwise). For percussion notes {@link noteValue}
+     * carries the DISPLAY value (staff position) instead of a real pitch.
+     */
+    public percussionMidi: number = -1;
+
+    /**
+     * The MusicXML notehead name to notate an added percussion note with
+     * (empty when not applicable or default).
+     */
+    public percussionNotehead: string = '';
+
     public constructor(kind: EditIntentKind, location: EditIntentLocation) {
         this.kind = kind;
         this.location = location;

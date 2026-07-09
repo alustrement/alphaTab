@@ -29,6 +29,7 @@ import { Beat } from '@coderline/alphatab/model/Beat';
 import { Clef } from '@coderline/alphatab/model/Clef';
 import { Duration } from '@coderline/alphatab/model/Duration';
 import { GraceType } from '@coderline/alphatab/model/GraceType';
+import { InstrumentArticulation } from '@coderline/alphatab/model/InstrumentArticulation';
 import { ModelUtils } from '@coderline/alphatab/model/ModelUtils';
 import { Note } from '@coderline/alphatab/model/Note';
 import type { Cursors } from '@coderline/alphatab/platform/Cursors';
@@ -256,7 +257,8 @@ export class ScoreEditor<TSettings> {
     public setPitchAtCursor(noteValue: number): void {
         const beat = this._cursor.beat;
         const staff = this._cursor.staff;
-        if (!beat || !staff) {
+        // percussion staves have no pitch axis — use setPercussionAtCursor.
+        if (!beat || !staff || staff.isPercussion) {
             return;
         }
         // notes are STORED at sounding pitch and DISPLAYED shifted by the
@@ -307,6 +309,73 @@ export class ScoreEditor<TSettings> {
     }
 
     /**
+     * Enters a percussion note at the cursor position, associating it with
+     * the instrument articulation for the given General MIDI number
+     * (created on the track when missing).
+     * @param midiNumber The General MIDI percussion number to enter (e.g. 38 = Acoustic Snare).
+     * @param displayValue The staff display position as octave * 12 + tone
+     * (MusicXML display-octave + 1, display-step).
+     * @param noteheadName The MusicXML notehead name to notate the note with
+     * (empty for the standard round heads).
+     */
+    public setPercussionAtCursor(midiNumber: number, displayValue: number, noteheadName: string = ''): void {
+        const beat = this._cursor.beat;
+        const staff = this._cursor.staff;
+        if (!beat || !staff || staff.isStringed) {
+            return;
+        }
+        for (const existing of beat.notes) {
+            if (EditModelHelpers.percussionMidiOf(existing) === midiNumber) {
+                return; // the element is already on the beat
+            }
+        }
+
+        const track = staff.track;
+        const [noteHeadDefault, noteHeadHalf, noteHeadWhole] = EditModelHelpers.noteheadSymbolsFor(noteheadName);
+        let articulationIndex = track.percussionArticulations.findIndex(
+            a => a.outputMidiNumber === midiNumber && a.noteHeadDefault === noteHeadDefault
+        );
+        if (articulationIndex === -1) {
+            const articulation = new InstrumentArticulation(
+                '',
+                EditModelHelpers.percussionStaffLine(beat.voice.bar, displayValue),
+                midiNumber,
+                noteHeadDefault,
+                noteHeadHalf,
+                noteHeadWhole
+            );
+            articulationIndex = track.percussionArticulations.length;
+            track.percussionArticulations.push(articulation);
+        }
+
+        const note = new Note();
+        note.octave = (displayValue / 12) | 0;
+        note.tone = displayValue - note.octave * 12;
+        note.percussionArticulation = articulationIndex;
+        const command = new AddNoteCommand(beat, note);
+        command.percussionNotehead = noteheadName;
+        this.executeCommand(command);
+    }
+
+    /**
+     * Removes the percussion note of the cursor beat playing the given
+     * General MIDI number, if any.
+     * @param midiNumber The General MIDI percussion number to remove.
+     */
+    public removePercussionAtCursor(midiNumber: number): void {
+        const beat = this._cursor.beat;
+        if (!beat) {
+            return;
+        }
+        for (const note of beat.notes) {
+            if (EditModelHelpers.percussionMidiOf(note) === midiNumber) {
+                this.executeCommand(new RemoveNoteCommand(note));
+                return;
+            }
+        }
+    }
+
+    /**
      * Removes the note at the cursor position.
      */
     public removeNoteAtCursor(): void {
@@ -352,6 +421,7 @@ export class ScoreEditor<TSettings> {
             } else {
                 note.octave = sourceNote.octave;
                 note.tone = sourceNote.tone;
+                note.percussionArticulation = sourceNote.percussionArticulation;
             }
             commands.push(new AddNoteCommand(beat, note));
         }

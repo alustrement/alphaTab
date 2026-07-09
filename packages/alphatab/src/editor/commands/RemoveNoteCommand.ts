@@ -39,7 +39,14 @@ export class RemoveNoteCommand extends EditCommand {
             EditIntentKind.RemoveNote,
             EditIntentLocation.fromBeat(this._beat, this._note.isStringed ? this._note.string : 0)
         );
-        intent.noteValue = EditModelHelpers.writtenValueOf(this._note);
+        if (this._note.isPercussion) {
+            // percussion notes have no pitch: noteValue carries the staff
+            // display position instead (octave * 12 + tone).
+            intent.noteValue = this._note.octave * 12 + this._note.tone;
+            intent.percussionMidi = EditModelHelpers.percussionMidiOf(this._note);
+        } else {
+            intent.noteValue = EditModelHelpers.writtenValueOf(this._note);
+        }
         this._intent = intent;
 
         this._noteIndex = this._beat.notes.indexOf(this._note);
